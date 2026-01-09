@@ -7,18 +7,29 @@ import os
 # 1. Configuración de página
 st.set_page_config(page_title="Gestión Curtiembre", layout="wide")
 
-# --- CONEXIÓN A GOOGLE SHEETS ---
+# --- CONEXIÓN A GOOGLE SHEETS (Versión Dual: Web y Local) ---
 def conectar_google_sheets():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     try:
-        creds = ServiceAccountCredentials.from_json_keyfile_name("creed.json", scope)
+        # 1. Intentamos leer desde los Secrets de Streamlit (Para cuando está ONLINE)
+        if "gcp_service_account" in st.secrets:
+            creds_dict = dict(st.secrets["gcp_service_account"])
+            # Corregimos el formato de la clave privada para que Python la entienda
+            creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        else:
+            # 2. Si no hay secrets, usamos el archivo local (Para cuando lo usás vos en TU PC)
+            creds = ServiceAccountCredentials.from_json_keyfile_name("creed.json", scope)
+            
         client = gspread.authorize(creds)
         spreadsheet = client.open("pendientes")
         return spreadsheet.get_worksheet(0)
     except Exception as e:
+        st.error(f"Error de conexión: {e}")
         return None
 
 # --- ESTILO CSS AVANZADO ---
+
 st.markdown("""
     <style>
     .block-container { padding-top: 0.5rem; padding-bottom: 0rem; }
